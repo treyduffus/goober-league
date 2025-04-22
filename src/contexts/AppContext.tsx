@@ -37,6 +37,7 @@ interface AppProviderProps {
 }
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
+  
   const [players, setPlayers] = useState<Player[]>(() => {
     const storedPlayers = localStorage.getItem('volleyPlayers');
     return storedPlayers ? JSON.parse(storedPlayers) : [];
