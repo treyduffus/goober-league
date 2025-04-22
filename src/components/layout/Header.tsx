@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../contexts/AppContext';
-import { Trophy } from 'lucide-react';
+import { Citrus } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { currentSeason } = useAppContext();
@@ -15,7 +15,7 @@ const Header: React.FC = () => {
             className="flex items-center space-x-2 cursor-pointer" 
             onClick={() => navigate('/')}
           >
-            <Trophy className="h-8 w-8" />
+            <Citrus className="h-8 w-8" />
             <h1 className="text-xl font-bold">Goober League</h1>
           </div>
           
