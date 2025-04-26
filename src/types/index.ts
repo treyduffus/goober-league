@@ -1,18 +1,11 @@
 export interface Player {
   id: string;
   name: string;
-  gamesPlayed: number;
-  wins: number;
-  losses: number;
-  winRate: number;
-  pointsScored: number;
 }
 
 export interface Game {
   id: string;
   date: string;
-  team1Players: string[];
-  team2Players: string[];
   team1Score: number;
   team2Score: number;
   team1Captain: string;
@@ -25,6 +18,7 @@ export interface Season {
   name: string;
   startDate: string;
   endDate: string;
+  is_current_season: boolean;
 }
 
 export type TeamNumber = 1 | 2;

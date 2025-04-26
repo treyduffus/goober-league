@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from "../client";
 import { v4 as uuidv4 } from 'uuid';
 import { Player, Game, Season } from '../types';
 
@@ -37,174 +38,214 @@ interface AppProviderProps {
 }
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
-  
-  const [players, setPlayers] = useState<Player[]>(() => {
-    const storedPlayers = localStorage.getItem('volleyPlayers');
-    return storedPlayers ? JSON.parse(storedPlayers) : [];
-  });
 
-  const [games, setGames] = useState<Game[]>(() => {
-    const storedGames = localStorage.getItem('volleyGames');
-    return storedGames ? JSON.parse(storedGames) : [];
-  });
 
-  const [seasons, setSeasons] = useState<Season[]>(() => {
-    const storedSeasons = localStorage.getItem('volleySeasons');
-    const parsedSeasons = storedSeasons ? JSON.parse(storedSeasons) : [];
-    
-    if (parsedSeasons.length === 0) {
-      const currentDate = new Date();
-      const monthName = currentDate.toLocaleString('default', { month: 'long' });
-      const year = currentDate.getFullYear();
-      const initialSeason: Season = {
-        id: uuidv4(),
-        name: `${monthName} ${year}`,
-        startDate: currentDate.toISOString(),
-        endDate: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString(),
-      };
-      return [initialSeason];
-    }
-    
-    return parsedSeasons;
-  });
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [games, setGames] = useState<Game[]>([]);
+  const [seasons, setSeasons] = useState<Season[]>([]); 
+  const [currentSeason, setCurrentSeason] = useState<Season>();
 
-  const [currentSeason, setCurrentSeason] = useState<Season | null>(() => {
-    const storedCurrentSeasonId = localStorage.getItem('volleyCurrentSeasonId');
-    if (storedCurrentSeasonId && seasons.length > 0) {
-      return seasons.find(season => season.id === storedCurrentSeasonId) || seasons[0];
-    }
-    return seasons.length > 0 ? seasons[0] : null;
-  });
+  // Getters
 
   useEffect(() => {
-    localStorage.setItem('volleyPlayers', JSON.stringify(players));
-  }, [players]);
-
-  useEffect(() => {
-    localStorage.setItem('volleyGames', JSON.stringify(games));
-  }, [games]);
-
-  useEffect(() => {
-    localStorage.setItem('volleySeasons', JSON.stringify(seasons));
-  }, [seasons]);
-
-  useEffect(() => {
-    if (currentSeason) {
-      localStorage.setItem('volleyCurrentSeasonId', currentSeason.id);
-    }
-  }, [currentSeason]);
-
-  const addPlayer = (name: string) => {
-    const newPlayer: Player = {
-      id: uuidv4(),
-      name,
-      gamesPlayed: 0,
-      wins: 0,
-      losses: 0,
-      winRate: 0,
-      pointsScored: 0,
+    const fetchPlayers = async () => {
+      const { data } = await supabase.from("Player").select();
+      if (data) {
+        setPlayers(data);
+      }
     };
+  
+    fetchPlayers();
+  }, []);
+
+  useEffect(() => {
+    const fetchGames = async () => {
+      const { data } = await supabase.from("Game").select();
+      if (data) {
+        setGames(data);
+      }
+    };
+  
+    fetchGames();
+  }, []);
+
+  const fetchSeasons = async () => {
+    const { data } = await supabase.from("Season").select();
+    if (data) {
+      if (data.length == 0){
+        const currentDate = new Date();
+        const monthName = currentDate.toLocaleString('default', { month: 'long' });
+        const year = currentDate.getFullYear();
+        const initialSeason: Season = {
+          id: uuidv4(),
+          name: `${monthName} ${year}`,
+          startDate: currentDate.toISOString(),
+          endDate: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString(),
+          is_current_season: true
+        };
+        setSeasons([initialSeason])
+      } else {
+        setSeasons(data);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchSeasons();
+    setCurrentSeason(seasons.find(season => season.is_current_season))
+  }, []);
+
+  // Add / Posts
+
+  const addPlayer = async (name: string) => {
+
+    const {data, error} = await supabase
+      .from("Player")
+      .insert({name: name})
+      .select();
+
+    console.log("Insert result:", data);
+    console.error("Insert error:", error);
+
+    const newPlayer = data;
+
     setPlayers(prev => [...prev, newPlayer]);
   };
 
-  const updatePlayer = (updatedPlayer: Player) => {
-    setPlayers(prev => 
-      prev.map(player => player.id === updatedPlayer.id ? updatedPlayer : player)
-    );
-  };
+  const addSeason = async (seasonData: Omit<Season, 'id'>) => {
 
-  const removePlayer = (id: string) => {
-    setPlayers(prev => prev.filter(player => player.id !== id));
-  };
+    const {data, error} = await supabase
+      .from("Season")
+      .insert(seasonData)
+      .select();
 
-  const addGame = (gameData: Omit<Game, 'id' | 'date'>) => {
-    const newGame: Game = {
-      id: uuidv4(),
-      date: new Date().toISOString(),
-      ...gameData,
-      seasonId: currentSeason?.id || '',
-    };
-    
-    setGames(prev => [...prev, newGame]);
-    
-    // Update player stats
-    const team1Won = newGame.team1Score > newGame.team2Score;
-    const updatePlayerStats = (playerId: string, won: boolean) => {
-      setPlayers(prev => 
-        prev.map(player => {
-          if (player.id === playerId) {
-            const gamesPlayed = player.gamesPlayed + 1;
-            const wins = won ? player.wins + 1 : player.wins;
-            const losses = !won ? player.losses + 1 : player.losses;
-            return {
-              ...player,
-              gamesPlayed,
-              wins,
-              losses,
-              winRate: gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0,
-            };
-          }
-          return player;
-        })
-      );
-    };
-    
-    newGame.team1Players.forEach(playerId => {
-      updatePlayerStats(playerId, team1Won);
-    });
-    
-    newGame.team2Players.forEach(playerId => {
-      updatePlayerStats(playerId, !team1Won);
-    });
-  };
+    console.log("Insert result:", data);
+    console.error("Insert error:", error);
 
-  const updateGame = (updatedGame: Game) => {
-    setGames(prev => 
-      prev.map(game => game.id === updatedGame.id ? updatedGame : game)
-    );
-  };
-
-  const removeGame = (id: string) => {
-    setGames(prev => prev.filter(game => game.id !== id));
-  };
-
-  const addSeason = (seasonData: Omit<Season, 'id'>) => {
-    const newSeason: Season = {
-      id: uuidv4(),
-      ...seasonData
-    };
+    const newSeason = data;
     
     setSeasons(prev => [...prev, newSeason]);
     setCurrentSeason(newSeason);
   };
 
-  const updateSeason = (updatedSeason: Season) => {
+  const addGame = async (gameData: Omit<Game, 'id' | 'date'>) => {
+
+    const {data, error} = await supabase
+      .from("Game")
+      .insert(gameData)
+      .select(); 
+
+    console.log("Insert result:", data);
+    console.error("Insert error:", error);
+
+    const newGame = data; 
+
+    setGames(prev => [...prev, newGame]);
+  };
+
+  // Updates 
+  const updatePlayer = async (updatedPlayer: Player) => {
+    const {data, error} = await supabase
+      .from("Player")
+      .update(updatedPlayer)
+      .eq('id', updatePlayer.id)
+      .select();
+
+
+    console.log("Update result:", data);
+    console.error("Update error:", error);
+
+    setPlayers(prev => 
+      prev.map(player => player.id === updatedPlayer.id ? updatedPlayer : player)
+    );
+  };
+
+  const updateGame = async (updatedGame: Game) => {
+    const {data, error} = await supabase
+      .from("Game")
+      .update(updatedGame)
+      .eq('id', updateGame.id)
+      .select();
+
+    console.log("Update result:", data);
+    console.error("Update error:", error);
+
+    setGames(prev => 
+      prev.map(game => game.id === updatedGame.id ? updatedGame : game)
+    );
+  };
+
+  const updateSeason = async (updatedSeason: Season) => {
+    const {data, error} = await supabase
+      .from("Game")
+      .update(updatedSeason)
+      .eq('id', updatedSeason.id)
+      .select();
+
+
+    console.log("Update result:", data);
+    console.error("Update error:", error);
+
     setSeasons(prev => 
       prev.map(season => season.id === updatedSeason.id ? updatedSeason : season)
     );
-    
+
     if (currentSeason?.id === updatedSeason.id) {
       setCurrentSeason(updatedSeason);
     }
   };
 
-  const removeSeason = (id: string) => {
+
+  // Deletes
+
+  const removePlayer = async (id: string) => {
+
+    const {error} = await supabase
+      .from("Player")
+      .delete()
+      .eq('id', id)
+
+    console.error("Delete error:", error);
+
+    setPlayers(prev => prev.filter(player => player.id !== id));
+  };
+
+  
+  const removeGame = async (id: string) => {
+
+    const {error} = await supabase
+      .from("Game")
+      .delete()
+      .eq('id', id)
+
+    console.error("Delete error:", error);
+
+    setGames(prev => prev.filter(game => game.id !== id));
+  };
+
+
+  const removeSeason = async (id: string) => {
+
+    const {error} = await supabase
+      .from("Season")
+      .delete()
+      .eq('id', id)
+
+    console.error("Delete error:", error);
+
     setSeasons(prev => prev.filter(season => season.id !== id));
     
     if (currentSeason?.id === id) {
-      const remainingSeasons = seasons.filter(season => season.id !== id);
-      setCurrentSeason(remainingSeasons.length > 0 ? remainingSeasons[0] : null);
+      if(seasons.length > 0) {
+        setCurrentSeason(seasons[0])
+      } else {
+        fetchSeasons()
+      }
     }
     
     // Remove all games associated with this season
-    setGames(prev => prev.filter(game => game.seasonId !== id));
-  };
-
-  const setCurrentSeasonById = (seasonId: string) => {
-    const season = seasons.find(s => s.id === seasonId);
-    if (season) {
-      setCurrentSeason(season);
-    }
+    // Not sure if I want this functionaility 
+    // setGames(prev => prev.filter(game => game.seasonId !== id));
   };
 
   const getPlayerById = (id: string) => players.find(player => player.id === id);
@@ -225,7 +266,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     addSeason,
     updateSeason,
     removeSeason,
-    setCurrentSeason: setCurrentSeasonById,
     getPlayerById,
     getGameById,
     getSeasonById,
