@@ -119,18 +119,22 @@ const CreateGamePage: React.FC = () => {
   
   const saveGame = () => {
     if (!currentSeason) return;
-    
+  
     const score1 = team1Score;
     const score2 = team2Score;
-    
-    addGame({
-      team1Score: score1,
-      team2Score: score2,
-      team1Captain,
-      team2Captain,
-      seasonId: currentSeason.id,
-    });
-    
+  
+    addGame(
+      {
+        team1Score: score1,
+        team2Score: score2,
+        team1Captain,
+        team2Captain,
+        seasonId: currentSeason.id,
+      },
+      team1Players,
+      team2Players
+    );
+  
     navigate('/games');
   };
   

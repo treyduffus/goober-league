@@ -22,8 +22,8 @@ export interface Season {
 }
 
 export interface GamePlayer {
-  game_id: number;
-  player_id: number;
+  gameId: number;
+  playerId: number;
   team: number
 }
 

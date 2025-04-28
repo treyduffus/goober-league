@@ -13,14 +13,13 @@ export const calculatePlayerStats = (playerId: number, games: Game[], gamePlayer
         return { gamesPlayed, wins, losses, winRate };
     }
 
-
-    const playerGames = gamePlayers.filter(gp => gp.player_id === playerId);
+    const playerGames = gamePlayers.filter(gp => gp.playerId === playerId);
     
     let wins = 0;
     let losses = 0;
     
     for (const pg of playerGames) {
-        const game = games.find(g => g.id === pg.game_id);
+        const game = games.find(g => g.id === pg.gameId);
         if (!game) continue;
         
         if (seasonId && game.seasonId !== seasonId) continue; // Skip if filtering by season

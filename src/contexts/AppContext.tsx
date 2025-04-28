@@ -11,17 +11,18 @@ interface AppContextType {
   currentSeason: Season | null;
   addPlayer: (name: string) => void;
   updatePlayer: (updatedPlayer: Player) => void;
-  removePlayer: (id: string) => void;
-  addGame: (game: Omit<Game, 'id' | 'date'>) => void;
+  removePlayer: (id: number) => void;
+  addGame: (gameData: Omit<Game, 'id' | 'date'>, team1PlayerIds: number[], team2PlayerIds: number[]) => void;
   updateGame: (updatedGame: Game) => void;
-  removeGame: (id: string) => void;
-  addSeason: (season: Omit<Season, 'id'>) => void;
+  removeGame: (id: number) => void;
+  addSeason: (name: string, startDate: string, endDate: string) => void;
   updateSeason: (updatedSeason: Season) => void;
-  removeSeason: (id: string) => void;
-  setCurrentSeason: (seasonId: string) => void;
-  getPlayerById: (id: string) => Player | undefined;
-  getGameById: (id: string) => Game | undefined;
-  getSeasonById: (id: string) => Season | undefined;
+  removeSeason: (id: number) => void;
+  setCurrentSeason: (seasonId: number) => void;
+  getPlayerById: (id: number) => Player | undefined;
+  getGameById: (id: number) => Game | undefined;
+  getSeasonById: (id: number) => Season | undefined;
+  handleSetCurrentSeason: (season : Season) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -79,29 +80,39 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         const currentDate = new Date();
         const monthName = currentDate.toLocaleString('default', { month: 'long' });
         const year = currentDate.getFullYear();
-        const initialSeason: Season = {
-          id: uuidv4(),
-          name: `${monthName} ${year}`,
-          start_date: currentDate.toISOString(),
-          end_date: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString(),
-          is_current_season: true
-        };
-        addSeason(initialSeason)
+        const name = `${monthName} ${year}`;
+        const startDate = currentDate.toISOString()
+        const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString()
+        addSeason(name, startDate, endDate)
       } else {
         setSeasons(data);
+
       }
     }
   };
 
   useEffect(() => {
-    fetchSeasons();
-    setCurrentSeason(seasons.find(season => season.is_current_season))
+    async function loadSeasons() {
+      await fetchSeasons();
+    }
+    loadSeasons();
   }, []);
+  
+  useEffect(() => {
+    if (seasons.length > 0) {
+      const current = seasons.find(season => season.is_current_season);
+      if (current) {
+        setCurrentSeason(current);
+      }
+    }
+  }, [seasons]);
 
   useEffect(() => {
     const fetchGamePlayers = async () => {
       const { data } = await supabase.from("GamePlayer").select();
-      setGamePlayers(data);
+      if (data) {
+        setGamePlayers(data);
+      }
     }
     fetchGamePlayers();
   })
@@ -123,11 +134,30 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setPlayers(prev => [...prev, newPlayer]);
   };
 
-  const addSeason = async (seasonData: Omit<Season, 'id'>) => {
+  const handleSetCurrentSeason = async (season: Season) => {
+
+    const tempSeason = {
+      id: season.id,
+      name: season.name,
+      startDate: season.startDate,
+      endDate: season.endDate,
+      is_current_season: true,
+    }
+
+    updateSeason(tempSeason)
+    setCurrentSeason(tempSeason)
+
+  }
+
+  const addSeason = async (name: string, startDate: string, endDate: string) => {
 
     const {data, error} = await supabase
       .from("Season")
-      .insert(seasonData)
+      .insert({
+        name: name,
+        start_date: startDate,
+        end_date: endDate
+      })
       .select();
 
     console.log("Insert result:", data);
@@ -139,20 +169,53 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setCurrentSeason(newSeason);
   };
 
-  const addGame = async (gameData: Omit<Game, 'id' | 'date'>) => {
-
-    const {data, error} = await supabase
+  const addGame = async (
+    gameData: Omit<Game, 'id' | 'date'>,
+    team1PlayerIds: number[], 
+    team2PlayerIds: number[]
+  ) => {
+    // Step 1: Insert the game
+    const { data, error } = await supabase
       .from("Game")
       .insert(gameData)
-      .select(); 
-
-    console.log("Insert result:", data);
-    console.error("Insert error:", error);
-
-    const newGame = data; 
-
+      .select()
+      .single(); // <-- use single() because you are inserting 1 row
+  
+    if (error || !data) {
+      console.error("Insert Game error:", error);
+      return;
+    }
+  
+    const newGame = data;
+  
+    // Step 2: Prepare gamePlayer insert payload
+    const gamePlayerEntries = [
+      ...team1PlayerIds.map(playerId => ({
+        game_id: newGame.id,
+        player_id: playerId,
+        team: 1
+      })),
+      ...team2PlayerIds.map(playerId => ({
+        game_id: newGame.id,
+        player_id: playerId,
+        team: 2
+      }))
+    ];
+  
+    // Step 3: Insert players into GamePlayer
+    const { error: gamePlayerError } = await supabase
+      .from("GamePlayer")
+      .insert(gamePlayerEntries);
+  
+    if (gamePlayerError) {
+      console.error("Insert GamePlayer error:", gamePlayerError);
+      return;
+    }
+  
+    // Step 4: Update local state
     setGames(prev => [...prev, newGame]);
   };
+  
 
   // Updates 
   const updatePlayer = async (updatedPlayer: Player) => {
@@ -188,7 +251,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   const updateSeason = async (updatedSeason: Season) => {
     const {data, error} = await supabase
-      .from("Game")
+      .from("Season")
       .update(updatedSeason)
       .eq('id', updatedSeason.id)
       .select();
@@ -201,9 +264,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       prev.map(season => season.id === updatedSeason.id ? updatedSeason : season)
     );
 
-    if (currentSeason?.id === updatedSeason.id) {
-      setCurrentSeason(updatedSeason);
-    }
   };
 
 
@@ -268,6 +328,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     games,
     seasons,
     currentSeason,
+    setCurrentSeason,
+    gamePlayers,
     addPlayer,
     updatePlayer,
     removePlayer,
@@ -280,6 +342,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     getPlayerById,
     getGameById,
     getSeasonById,
+    handleSetCurrentSeason,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
