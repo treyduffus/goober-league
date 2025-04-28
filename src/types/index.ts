@@ -1,24 +1,30 @@
 export interface Player {
-  id: string;
+  id: number;
   name: string;
 }
 
 export interface Game {
-  id: string;
+  id: number;
   date: string;
   team1Score: number;
   team2Score: number;
-  team1Captain: string;
-  team2Captain: string;
-  seasonId: string;
+  team1Captain: number;
+  team2Captain: number;
+  seasonId: number;
 }
 
 export interface Season {
-  id: string;
+  id: number;
   name: string;
   startDate: string;
   endDate: string;
   is_current_season: boolean;
+}
+
+export interface GamePlayer {
+  game_id: number;
+  player_id: number;
+  team: number
 }
 
 export type TeamNumber = 1 | 2;

@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from "../client";
 import { v4 as uuidv4 } from 'uuid';
-import { Player, Game, Season } from '../types';
+import { Player, Game, Season, GamePlayer } from '../types';
 
 interface AppContextType {
   players: Player[];
   games: Game[];
   seasons: Season[];
+  gamePlayers: GamePlayer[];
   currentSeason: Season | null;
   addPlayer: (name: string) => void;
   updatePlayer: (updatedPlayer: Player) => void;
@@ -44,6 +45,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [games, setGames] = useState<Game[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]); 
   const [currentSeason, setCurrentSeason] = useState<Season>();
+  const [gamePlayers, setGamePlayers] = useState<GamePlayer[]>([]);
 
   // Getters
 
@@ -73,17 +75,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const { data } = await supabase.from("Season").select();
     if (data) {
       if (data.length == 0){
+
         const currentDate = new Date();
         const monthName = currentDate.toLocaleString('default', { month: 'long' });
         const year = currentDate.getFullYear();
         const initialSeason: Season = {
           id: uuidv4(),
           name: `${monthName} ${year}`,
-          startDate: currentDate.toISOString(),
-          endDate: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString(),
+          start_date: currentDate.toISOString(),
+          end_date: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString(),
           is_current_season: true
         };
-        setSeasons([initialSeason])
+        addSeason(initialSeason)
       } else {
         setSeasons(data);
       }
@@ -94,6 +97,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     fetchSeasons();
     setCurrentSeason(seasons.find(season => season.is_current_season))
   }, []);
+
+  useEffect(() => {
+    const fetchGamePlayers = async () => {
+      const { data } = await supabase.from("GamePlayer").select();
+      setGamePlayers(data);
+    }
+    fetchGamePlayers();
+  })
 
   // Add / Posts
 
@@ -198,7 +209,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   // Deletes
 
-  const removePlayer = async (id: string) => {
+  const removePlayer = async (id: number) => {
 
     const {error} = await supabase
       .from("Player")
@@ -211,7 +222,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
   
-  const removeGame = async (id: string) => {
+  const removeGame = async (id: number) => {
 
     const {error} = await supabase
       .from("Game")
@@ -224,7 +235,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
 
-  const removeSeason = async (id: string) => {
+  const removeSeason = async (id: number) => {
 
     const {error} = await supabase
       .from("Season")
@@ -248,9 +259,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     // setGames(prev => prev.filter(game => game.seasonId !== id));
   };
 
-  const getPlayerById = (id: string) => players.find(player => player.id === id);
-  const getGameById = (id: string) => games.find(game => game.id === id);
-  const getSeasonById = (id: string) => seasons.find(season => season.id === id);
+  const getPlayerById = (id: number) => players.find(player => player.id === id);
+  const getGameById = (id: number) => games.find(game => game.id === id);
+  const getSeasonById = (id: number) => seasons.find(season => season.id === id);
 
   const value = {
     players,

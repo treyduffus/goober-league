@@ -3,42 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import { Shuffle, Users, User, CheckCircle, XCircle } from 'lucide-react';
 import { useAppContext } from '../contexts/AppContext';
 import { Player, TeamNumber, PlayerWithStats } from '../types';
+import { calculatePlayerStats  } from "../utils/stats"
 
 const CreateGamePage: React.FC = () => {
-  const { players, addGame, games, currentSeason } = useAppContext();
+  const { players, addGame, games, currentSeason, gamePlayers } = useAppContext();
   const navigate = useNavigate();
   
   const [step, setStep] = useState<'select' | 'teams' | 'score'>('select');
-  const [selectedPlayers, setSelectedPlayers] = useState<string[]>([]);
-  const [team1Players, setTeam1Players] = useState<string[]>([]);
-  const [team2Players, setTeam2Players] = useState<string[]>([]);
-  const [team1Score, setTeam1Score] = useState<string>('0');
-  const [team2Score, setTeam2Score] = useState<string>('0');
-  const [team1Captain, setTeam1Captain] = useState<string>('');
-  const [team2Captain, setTeam2Captain] = useState<string>('');
+  const [selectedPlayers, setSelectedPlayers] = useState<number[]>([]);
+  const [team1Players, setTeam1Players] = useState<number[]>([]);
+  const [team2Players, setTeam2Players] = useState<number[]>([]);
+  const [team1Score, setTeam1Score] = useState<number>(0);
+  const [team2Score, setTeam2Score] = useState<number>(0);
+  const [team1Captain, setTeam1Captain] = useState<number>(0);
+  const [team2Captain, setTeam2Captain] = useState<number>(0);
   
   // Calculate player stats for team balancing
   const playersWithStats: PlayerWithStats[] = players.map(player => {
-    // Get recent games for this player
-    const playerGames = games
-      .filter(game => 
-        game.team1Players.includes(player.id) || 
-        game.team2Players.includes(player.id)
-      )
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 10); // Consider only the last 10 games
+
+    const playerStats = calculatePlayerStats(player.id, games, gamePlayers , currentSeason?.id)
     
-    // Calculate recent win rate
-    const recentWins = playerGames.filter(game => {
-      const inTeam1 = game.team1Players.includes(player.id);
-      return (inTeam1 && game.team1Score > game.team2Score) || 
-             (!inTeam1 && game.team2Score > game.team1Score);
-    }).length;
-    
-    const recentPerformance = playerGames.length > 0 
-      ? (recentWins / playerGames.length) 
-      : 0.5; // Default to 0.5 if no games played
-    
+    const recentPerformance = playerStats.winRate 
+
     return {
       ...player,
       recentPerformance,
@@ -51,7 +37,7 @@ const CreateGamePage: React.FC = () => {
     
     // Get the selected players with their stats
     const playersToBalance = selectedPlayers.map(id => 
-      playersWithStats.find(p => p.id === id)!
+      playersWithStats.find(p => p.id === Number(id))!
     );
     
     // Sort by performance (best to worst)
@@ -59,8 +45,8 @@ const CreateGamePage: React.FC = () => {
       (b.recentPerformance || 0.5) - (a.recentPerformance || 0.5)
     );
     
-    const team1: string[] = [];
-    const team2: string[] = [];
+    const team1: number[] = [];
+    const team2: number[] = [];
     let team1Strength = 0;
     let team2Strength = 0;
     
@@ -83,7 +69,7 @@ const CreateGamePage: React.FC = () => {
     if (team2.length > 0) setTeam2Captain(team2[0]);
   };
   
-  const togglePlayerSelection = (playerId: string) => {
+  const togglePlayerSelection = (playerId: number) => {
     setSelectedPlayers(prev => 
       prev.includes(playerId)
         ? prev.filter(id => id !== playerId)
@@ -108,21 +94,21 @@ const CreateGamePage: React.FC = () => {
     setStep('score');
   };
   
-  const movePlayerBetweenTeams = (playerId: string, fromTeam: TeamNumber, toTeam: TeamNumber) => {
+  const movePlayerBetweenTeams = (playerId: number, fromTeam: TeamNumber, toTeam: TeamNumber) => {
     if (fromTeam === 1 && toTeam === 2) {
       setTeam1Players(prev => prev.filter(id => id !== playerId));
       setTeam2Players(prev => [...prev, playerId]);
-      if (team1Captain === playerId) setTeam1Captain(team1Players[0] || '');
+      if (team1Captain === playerId) setTeam1Captain(team1Players[0] || 0);
     } else if (fromTeam === 2 && toTeam === 1) {
       setTeam2Players(prev => prev.filter(id => id !== playerId));
       setTeam1Players(prev => [...prev, playerId]);
-      if (team2Captain === playerId) setTeam2Captain(team2Players[0] || '');
+      if (team2Captain === playerId) setTeam2Captain(team2Players[0] || 0);
     }
   };
   
-  const handleScoreChange = (team: TeamNumber, value: string) => {
-    // Only allow numbers and empty string
-    if (!/^\d*$/.test(value)) return;
+  const handleScoreChange = (team: TeamNumber, value: number) => {
+    // Only allow numbers
+    if (isNaN(value)) return;
     
     if (team === 1) {
       setTeam1Score(value);
@@ -134,12 +120,10 @@ const CreateGamePage: React.FC = () => {
   const saveGame = () => {
     if (!currentSeason) return;
     
-    const score1 = parseInt(team1Score) || 0;
-    const score2 = parseInt(team2Score) || 0;
+    const score1 = team1Score;
+    const score2 = team2Score;
     
     addGame({
-      team1Players,
-      team2Players,
       team1Score: score1,
       team2Score: score2,
       team1Captain,
@@ -155,12 +139,12 @@ const CreateGamePage: React.FC = () => {
     if (step === 'select') {
       setTeam1Players([]);
       setTeam2Players([]);
-      setTeam1Captain('');
-      setTeam2Captain('');
+      setTeam1Captain(0);
+      setTeam2Captain(0);
     }
   }, [selectedPlayers, step]);
   
-  const getPlayerById = (id: string): Player | undefined => 
+  const getPlayerById = (id: number): Player | undefined => 
     players.find(player => player.id === id);
   
   const renderPlayerList = () => (
@@ -238,7 +222,7 @@ const CreateGamePage: React.FC = () => {
               <select 
                 className="input"
                 value={team1Captain}
-                onChange={(e) => setTeam1Captain(e.target.value)}
+                onChange={(e) => setTeam1Captain(parseInt(e.target.value))}
               >
                 <option value="">Select captain</option>
                 {team1Players.map(playerId => {
@@ -303,7 +287,7 @@ const CreateGamePage: React.FC = () => {
               <select 
                 className="input"
                 value={team2Captain}
-                onChange={(e) => setTeam2Captain(e.target.value)}
+                onChange={(e) => setTeam2Captain(parseInt(e.target.value))}
               >
                 <option value="">Select captain</option>
                 {team2Players.map(playerId => {
@@ -400,7 +384,7 @@ const CreateGamePage: React.FC = () => {
               <input
                 type="text"
                 value={team1Score}
-                onChange={(e) => handleScoreChange(1, e.target.value)}
+                onChange={(e) => handleScoreChange(1, parseInt(e.target.value))}
                 className="input text-center text-2xl font-bold"
                 placeholder="0"
               />
@@ -437,7 +421,7 @@ const CreateGamePage: React.FC = () => {
               <input
                 type="text"
                 value={team2Score}
-                onChange={(e) => handleScoreChange(2, e.target.value)}
+                onChange={(e) => handleScoreChange(2, parseInt(e.target.value))}
                 className="input text-center text-2xl font-bold"
                 placeholder="0"
               />
