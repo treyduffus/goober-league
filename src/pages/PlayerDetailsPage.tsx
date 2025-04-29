@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit, Save, Trash2, X } from 'lucide-react';
 import { useAppContext } from '../contexts/AppContext';
+import { calculatePlayerStats } from '../utils/stats';
 
 const PlayerDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getPlayerById, updatePlayer, removePlayer, games } = useAppContext();
+  const { getPlayerById, updatePlayer, removePlayer, games, gamePlayers } = useAppContext();
   
-  const player = getPlayerById(id || '');
+  const player = getPlayerById(parseInt(id) || -1);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -26,13 +27,19 @@ const PlayerDetailsPage: React.FC = () => {
       </div>
     );
   }
+
+  const { gamesPlayed, wins, losses, winRate } = calculatePlayerStats(
+        player.id,
+        games,
+        gamePlayers,
+      );
   
-  const playerGames = games
-    .filter(game => 
-      game.team1Players.includes(player.id) || 
-      game.team2Players.includes(player.id)
-    )
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const playerGames = games.filter(game =>
+    gamePlayers.some(gp => gp.game_id === game.id && gp.player_id === player.id)
+  ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  console.log(playerGames);
+   
   
   const startEdit = () => {
     setEditName(player.name);
@@ -135,7 +142,7 @@ const PlayerDetailsPage: React.FC = () => {
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">{player.name}</h2>
-                <p className="text-gray-500">{player.gamesPlayed} games played</p>
+                <p className="text-gray-500">{gamesPlayed} games played</p>
               </div>
             </div>
           )}
@@ -144,17 +151,17 @@ const PlayerDetailsPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
               <div className="bg-green-50 rounded-lg p-4 border border-green-100">
                 <p className="text-sm font-medium text-green-700">Wins</p>
-                <p className="text-2xl font-bold text-green-800">{player.wins}</p>
+                <p className="text-2xl font-bold text-green-800">{wins}</p>
               </div>
               
               <div className="bg-red-50 rounded-lg p-4 border border-red-100">
                 <p className="text-sm font-medium text-red-700">Losses</p>
-                <p className="text-2xl font-bold text-red-800">{player.losses}</p>
+                <p className="text-2xl font-bold text-red-800">{losses}</p>
               </div>
               
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
                 <p className="text-sm font-medium text-blue-700">Win Rate</p>
-                <p className="text-2xl font-bold text-blue-800">{player.winRate}%</p>
+                <p className="text-2xl font-bold text-blue-800">{winRate}%</p>
               </div>
             </div>
           )}
@@ -176,7 +183,9 @@ const PlayerDetailsPage: React.FC = () => {
                   day: 'numeric',
                 });
                 
-                const isTeam1 = game.team1Players.includes(player.id);
+                const isTeam1 = gamePlayers.some(
+                  gp => gp.gameId === game.id && gp.playerId === player.id && gp.team === 1
+                );
                 const won = isTeam1 
                   ? game.team1Score > game.team2Score 
                   : game.team2Score > game.team1Score;
