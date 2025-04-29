@@ -75,7 +75,7 @@ const SeasonPage: React.FC = () => {
   
     const filteredGamePlayers = gamePlayers.filter(gp => gameIds.has(gp.game_id));
     setSeasonGamePlayers(filteredGamePlayers);
-  }, [seasonDetails, gamePlayers]);
+  }, []);
 
   const uniquePlayerIds = Array.from(
     new Set(seasonGamePlayers.map(gp => gp.player_id))

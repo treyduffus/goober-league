@@ -8,28 +8,25 @@ const HomePage: React.FC = () => {
   const { players, games, currentSeason, gamePlayers } = useAppContext();
   const navigate = useNavigate();
   
-  // Filter games by current season
-  const seasonGames = games.filter(game => game.seasonId === currentSeason?.id);
-  
-  // Calculate top players
+  // Calculate top players (all time)
   const playersWithStats = players.map(player => {
     const { gamesPlayed, wins, losses, winRate } = calculatePlayerStats(
       player.id,
-      seasonGames,
+      games,
       gamePlayers,
       currentSeason?.id
     );
   
     return {
       ...player,
-      seasonGames: gamesPlayed,
-      seasonWins: wins,
+      allGames: gamesPlayed,
+      allWins: wins,
       winRate: winRate,
     };
   });
   
   const topPlayers = [...playersWithStats]
-    .filter(player => player.seasonGames > 0)
+    .filter(player => player.allGames > 0)
     .sort((a, b) => b.winRate - a.winRate)
     .slice(0, 3);
 
@@ -83,8 +80,8 @@ const HomePage: React.FC = () => {
             <Trophy className="text-secondary-500" size={24} />
           </div>
           <div>
-            <p className="text-3xl font-bold text-gray-900">{seasonGames.length}</p>
-            <p className="text-sm text-gray-500">Games in current season</p>
+            <p className="text-3xl font-bold text-gray-900">{games.length}</p>
+            <p className="text-sm text-gray-500">Total Games</p>
           </div>
         </div>
       </div>
@@ -98,7 +95,7 @@ const HomePage: React.FC = () => {
           </h2>
         </div>
         
-        {seasonGames.length > 0 ? (
+        {games.length > 0 ? (
           <div className="card overflow-visible">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-800">Top Performers</h3>
@@ -121,7 +118,7 @@ const HomePage: React.FC = () => {
                       <div>
                         <p className="font-medium">{player.name}</p>
                         <p className="text-sm text-gray-500">
-                          {player.seasonWins} wins in {player.seasonGames} games
+                          {player.allWins} wins in {player.allGames} games
                         </p>
                       </div>
                     </div>
@@ -153,7 +150,7 @@ const HomePage: React.FC = () => {
       </div>
       
       {/* Recent Games */}
-      {seasonGames.length > 0 && (
+      {games.length > 0 && (
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-800">Recent Games</h2>
@@ -167,7 +164,7 @@ const HomePage: React.FC = () => {
           
           <div className="card">
             <div className="divide-y divide-gray-200">
-              {seasonGames.slice(-3).reverse().map(game => {
+              {games.slice(-3).reverse().map(game => {
                 const date = new Date(game.date);
                 const formattedDate = date.toLocaleDateString(undefined, {
                   month: 'short',
