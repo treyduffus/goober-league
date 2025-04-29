@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Trophy, UserPlus, X } from 'lucide-react';
 import { useAppContext } from '../contexts/AppContext';
+import { calculatePlayerStats } from '../utils/stats';
 
 const PlayersPage: React.FC = () => {
-  const { players, addPlayer } = useAppContext();
+  const { players, addPlayer, games, gamePlayers } = useAppContext();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -115,38 +116,46 @@ const PlayersPage: React.FC = () => {
 
         {filteredPlayers.length > 0 ? (
           <div className="divide-y divide-gray-200">
-            {filteredPlayers.map((player) => (
-              <div
-                key={player.id}
-                className="flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer"
-                onClick={() => navigate(`/players/${player.id}`)}
-              >
-                <div className="flex items-center">
-                  <div className="mr-3 w-10 h-10 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center">
-                    {player.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{player.name}</p>
-                    <p className="text-sm text-gray-500">
-                      {player.gamesPlayed} games played
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  {player.gamesPlayed > 0 && (
-                    <div className="mr-4 text-right">
-                      <div className="flex items-center text-secondary-600">
-                        <Trophy size={16} className="mr-1" />
-                        <span className="font-medium">{player.winRate}%</span>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        {player.wins}W - {player.losses}L
+            {filteredPlayers.map((player) => {
+              const { gamesPlayed, wins, losses, winRate } = calculatePlayerStats(
+                player.id,
+                games,
+                gamePlayers
+              );
+
+              return (
+                <div
+                  key={player.id}
+                  className="flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => navigate(`/players/${player.id}`)}
+                >
+                  <div className="flex items-center">
+                    <div className="mr-3 w-10 h-10 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center">
+                      {player.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{player.name}</p>
+                      <p className="text-sm text-gray-500">
+                        {gamesPlayed} games played
                       </p>
                     </div>
-                  )}
+                  </div>
+                  <div className="flex items-center">
+                    {gamesPlayed > 0 && (
+                      <div className="mr-4 text-right">
+                        <div className="flex items-center text-secondary-600">
+                          <Trophy size={16} className="mr-1" />
+                          <span className="font-medium">{winRate}%</span>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          {wins}W - {losses}L
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="p-6 text-center text-gray-500">
