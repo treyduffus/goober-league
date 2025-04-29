@@ -340,14 +340,29 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   
   const removeGame = async (id: number) => {
-
-    const {error} = await supabase
+    // Step 1: Delete related GamePlayer entries
+    const { error: deleteGPError } = await supabase
+      .from("Game_Player")
+      .delete()
+      .eq("game_id", id);
+  
+    if (deleteGPError) {
+      console.error("Failed to delete GamePlayer entries:", deleteGPError);
+      return;
+    }
+  
+    // Step 2: Delete the Game itself
+    const { error: deleteGameError } = await supabase
       .from("Game")
       .delete()
-      .eq('id', id)
-
-    console.error("Delete error:", error);
-
+      .eq("id", id);
+  
+    if (deleteGameError) {
+      console.error("Failed to delete Game:", deleteGameError);
+      return;
+    }
+  
+    // Step 3: Update local state
     setGames(prev => prev.filter(game => game.id !== id));
   };
 

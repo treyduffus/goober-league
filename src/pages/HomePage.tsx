@@ -27,7 +27,7 @@ const HomePage: React.FC = () => {
   
   const topPlayers = [...playersWithStats]
     .filter(player => player.allGames > 0)
-    .sort((a, b) => b.winRate - a.winRate)
+    .sort((a, b) => b.allWins - a.allWins)
     .slice(0, 3);
 
   return (
