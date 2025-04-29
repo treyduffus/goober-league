@@ -135,7 +135,7 @@ const CreateGamePage: React.FC = () => {
       team2Players
     );
   
-    navigate('/games');
+    navigate('/');
   };
   
   // Reset teams when selected players change
