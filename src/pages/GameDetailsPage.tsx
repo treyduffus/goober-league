@@ -6,10 +6,10 @@ import { useAppContext } from '../contexts/AppContext';
 const GameDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getGameById, getPlayerById, removeGame, getSeasonById } = useAppContext();
+  const { getGameById, getPlayerById, removeGame, getSeasonById, gamePlayers } = useAppContext();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
-  const game = getGameById(id || '');
+  const game = getGameById(parseInt(id) || -1);
   
   if (!game) {
     return (
@@ -27,9 +27,16 @@ const GameDetailsPage: React.FC = () => {
   
   const season = getSeasonById(game.seasonId);
   
-  const team1Players = game.team1Players.map(id => getPlayerById(id)!);
-  const team2Players = game.team2Players.map(id => getPlayerById(id)!);
+  const team1Players = gamePlayers
+  .filter(gp => gp.game_id === game.id && parseInt(gp.team) === 1)
+  .map(gp => getPlayerById(gp.player_id))
+  .filter(Boolean); // filter out undefined if any
   
+  const team2Players = gamePlayers
+  .filter(gp => gp.game_id === game.id && parseInt(gp.team) === 2)
+  .map(gp => getPlayerById(gp.player_id))
+  .filter(Boolean);
+
   const team1Won = game.team1Score > game.team2Score;
   const team2Won = game.team2Score > game.team1Score;
   const isTie = game.team1Score === game.team2Score;
@@ -120,14 +127,14 @@ const GameDetailsPage: React.FC = () => {
               <div className="space-y-2">
                 {team1Players.map(player => (
                   <div 
-                    key={player.id}
+                    key={player?.id}
                     className="flex items-center p-2 bg-white rounded-md shadow-sm cursor-pointer hover:bg-gray-50"
-                    onClick={() => navigate(`/players/${player.id}`)}
+                    onClick={() => navigate(`/players/${player?.id}`)}
                   >
                     <div className="mr-3 w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center">
-                      {player.name.charAt(0).toUpperCase()}
+                      {player?.name.charAt(0).toUpperCase()}
                     </div>
-                    <span className="font-medium">{player.name}</span>
+                    <span className="font-medium">{player?.name}</span>
                   </div>
                 ))}
               </div>
@@ -159,14 +166,14 @@ const GameDetailsPage: React.FC = () => {
               <div className="space-y-2">
                 {team2Players.map(player => (
                   <div 
-                    key={player.id}
+                    key={player?.id}
                     className="flex items-center p-2 bg-white rounded-md shadow-sm cursor-pointer hover:bg-gray-50"
-                    onClick={() => navigate(`/players/${player.id}`)}
+                    onClick={() => navigate(`/players/${player?.id}`)}
                   >
                     <div className="mr-3 w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center">
-                      {player.name.charAt(0).toUpperCase()}
+                      {player?.name.charAt(0).toUpperCase()}
                     </div>
-                    <span className="font-medium">{player.name}</span>
+                    <span className="font-medium">{player?.name}</span>
                   </div>
                 ))}
               </div>
@@ -194,16 +201,16 @@ const GameDetailsPage: React.FC = () => {
               
               return (
                 <div 
-                  key={player.id}
+                  key={player?.id}
                   className="p-4 hover:bg-gray-50 cursor-pointer flex justify-between items-center"
-                  onClick={() => navigate(`/players/${player.id}`)}
+                  onClick={() => navigate(`/players/${player?.id}`)}
                 >
                   <div className="flex items-center">
                     <div className="mr-3 w-10 h-10 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center">
-                      {player.name.charAt(0).toUpperCase()}
+                      {player?.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-medium">{player.name}</p>
+                      <p className="font-medium">{player?.name}</p>
                       <p className="text-sm text-gray-500">
                         Team {inTeam1 ? '1' : '2'}
                       </p>

@@ -24,12 +24,12 @@ const GameHistoryPage: React.FC = () => {
     
       const searchLower = searchTerm.toLowerCase();
     
-      const relatedGamePlayers = gamePlayers.filter(gp => gp.gameId === game.id);
+      const relatedGamePlayers = gamePlayers.filter(gp => gp.game_id === game.id);
     
       // Only continue if we have gamePlayers and players loaded
       const playerNames = relatedGamePlayers.length && players.length
         ? relatedGamePlayers
-            .map(gp => players.find(p => p.id === gp.playerId)?.name || '')
+            .map(gp => players.find(p => p.id === gp.player_id)?.name || '')
             .join(' ')
         : '';
     
