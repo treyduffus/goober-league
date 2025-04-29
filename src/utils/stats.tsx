@@ -4,36 +4,42 @@ export const calculatePlayerStats = (playerId: number, games: Game[], gamePlayer
     // 1. Find all games player played in
 
     // If this player hasent played yet 
-    if (!gamePlayers) {
-        const gamesPlayed = 0;
-        const wins = 0;
-        const losses = 0;
-        const winRate = 0;
+    // if (!gamePlayers) {
+    //     const gamesPlayed = 0;
+    //     const wins = 0;
+    //     const losses = 0;
+    //     const winRate = 0;
 
-        return { gamesPlayed, wins, losses, winRate };
-    }
+    //     return { gamesPlayed, wins, losses, winRate };
+    // }
 
-    const playerGames = gamePlayers.filter(gp => gp.playerId === playerId);
+    const playerGames = gamePlayers.filter(gp => gp.player_id === playerId);
     
     let wins = 0;
     let losses = 0;
     
     for (const pg of playerGames) {
-        const game = games.find(g => g.id === pg.gameId);
+        const game = games.find(g => g.id === pg.game_id);
         if (!game) continue;
         
-        if (seasonId && game.seasonId !== seasonId) continue; // Skip if filtering by season
+        // if (seasonId && game.seasonId !== seasonId) continue; // Skip if filtering by season
 
         const playerTeam = pg.team;
-        const playerScore = playerTeam === 1 ? game.team1Score : game.team2Score;
-        const opponentScore = playerTeam === 1 ? game.team2Score : game.team1Score;
+        const playerScore = parseInt(playerTeam) === 1 ? game.team1Score : game.team2Score;
+        const opponentScore = parseInt(playerTeam) === 1 ? game.team2Score : game.team1Score;
         
-        if (playerScore > opponentScore) wins++;
-        else losses++;
+        if (playerScore > opponentScore) {
+            wins++;
+        } else {
+            losses++;
+        }
+        
     }
 
     const gamesPlayed = wins + losses;
-    const winRate = gamesPlayed > 0 ? wins / gamesPlayed : 0;
+    let winRate = gamesPlayed > 0 ? wins / gamesPlayed : 0;
+    winRate = Math.round(winRate * 100);
+
 
     return { gamesPlayed, wins, losses, winRate };
 } 

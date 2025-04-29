@@ -4,11 +4,11 @@ import { Trophy, Calendar, Filter, PlusCircle, Search, X } from 'lucide-react';
 import { useAppContext } from '../contexts/AppContext';
 
 const GameHistoryPage: React.FC = () => {
-  const { games, players, currentSeason, seasons } = useAppContext();
+  const { games, players, currentSeason, seasons, gamePlayers } = useAppContext();
   const navigate = useNavigate();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterSeason, setFilterSeason] = useState<string | null>(
+  const [filterSeason, setFilterSeason] = useState<number | null>(
     currentSeason ? currentSeason.id : null
   );
   
@@ -21,21 +21,20 @@ const GameHistoryPage: React.FC = () => {
     })
     .filter(game => {
       if (!searchTerm) return true;
-      
+    
       const searchLower = searchTerm.toLowerCase();
-      
-      // Search in player names
-      const team1PlayerNames = game.team1Players
-        .map(id => players.find(p => p.id === id)?.name || '')
-        .join(' ');
-      
-      const team2PlayerNames = game.team2Players
-        .map(id => players.find(p => p.id === id)?.name || '')
-        .join(' ');
-      
+    
+      const relatedGamePlayers = gamePlayers.filter(gp => gp.gameId === game.id);
+    
+      // Only continue if we have gamePlayers and players loaded
+      const playerNames = relatedGamePlayers.length && players.length
+        ? relatedGamePlayers
+            .map(gp => players.find(p => p.id === gp.playerId)?.name || '')
+            .join(' ')
+        : '';
+    
       return (
-        team1PlayerNames.toLowerCase().includes(searchLower) ||
-        team2PlayerNames.toLowerCase().includes(searchLower) ||
+        playerNames.toLowerCase().includes(searchLower) ||
         game.team1Score.toString().includes(searchLower) ||
         game.team2Score.toString().includes(searchLower)
       );
@@ -57,9 +56,10 @@ const GameHistoryPage: React.FC = () => {
   });
   
   // Get player names for a team
-  const getTeamPlayerNames = (playerIds: string[]) => {
-    return playerIds
-      .map(id => players.find(p => p.id === id)?.name || 'Unknown')
+  const getTeamPlayerNames = (gameId: number, team: number) => {
+    return gamePlayers
+      .filter(gp => gp.gameId === gameId && gp.team === team)
+      .map(gp => players.find(p => p.id === gp.playerId)?.name || 'Unknown')
       .join(', ');
   };
   
@@ -117,7 +117,7 @@ const GameHistoryPage: React.FC = () => {
               <select
                 className="input pl-10 appearance-none pr-8"
                 value={filterSeason || ''}
-                onChange={(e) => setFilterSeason(e.target.value || null)}
+                onChange={(e) => setFilterSeason(parseInt(e.target.value) || null)}
               >
                 <option value="">All Seasons</option>
                 {seasons.map(season => (
@@ -165,7 +165,7 @@ const GameHistoryPage: React.FC = () => {
                       <div className="flex-1">
                         <p className="font-medium">Team 1</p>
                         <p className="text-sm text-gray-600 mb-1 line-clamp-1">
-                          {getTeamPlayerNames(game.team1Players)}
+                          {getTeamPlayerNames(game.id, 1)}
                         </p>
                         <p className={`text-xl font-bold ${game.team1Score > game.team2Score ? 'text-green-600' : 'text-gray-700'}`}>
                           {game.team1Score}
@@ -189,7 +189,7 @@ const GameHistoryPage: React.FC = () => {
                       <div className="flex-1 text-right">
                         <p className="font-medium">Team 2</p>
                         <p className="text-sm text-gray-600 mb-1 line-clamp-1">
-                          {getTeamPlayerNames(game.team2Players)}
+                          {getTeamPlayerNames(game.id, 2)}
                         </p>
                         <p className={`text-xl font-bold ${game.team2Score > game.team1Score ? 'text-green-600' : 'text-gray-700'}`}>
                           {game.team2Score}

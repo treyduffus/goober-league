@@ -109,7 +109,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const fetchGamePlayers = async () => {
-      const { data } = await supabase.from("GamePlayer").select();
+      const { data } = await supabase.from("Game_Player").select();
       if (data) {
         setGamePlayers(data);
       }
@@ -204,7 +204,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   
     // Step 3: Insert players into GamePlayer
     const { error: gamePlayerError } = await supabase
-      .from("GamePlayer")
+      .from("Game_Player")
       .insert(gamePlayerEntries);
   
     if (gamePlayerError) {

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, ChevronRight, Plus, Trophy, BarChart3, Trash2 } from 'lucide-react';
 import { useAppContext } from '../contexts/AppContext';
+import { GamePlayer } from '../types';
+import { calculatePlayerStats } from '../utils/stats';
 
 const SeasonPage: React.FC = () => {
   const { seasons, currentSeason, addSeason, updateSeason, removeSeason, games, players, gamePlayers, handleSetCurrentSeason } = useAppContext();
@@ -11,6 +13,8 @@ const SeasonPage: React.FC = () => {
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
   });
+  const [seasonGameIds, setSeasonGameIds] = useState<Set<number>>(new Set());
+  const [seasonGamePlayers, setSeasonGamePlayers] = useState<GamePlayer[]>([]);
   
   const handleAddSeason = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,34 +66,19 @@ const SeasonPage: React.FC = () => {
     id: currentSeason.id,
     games: games.filter(game => game.seasonId === currentSeason.id),
   } : null;
+
+  useEffect(() => {
+    if (!seasonDetails || !gamePlayers) return;
+  
+    const gameIds = new Set(seasonDetails.games.map(game => game.id));
+    setSeasonGameIds(gameIds);
+  
+    const filteredGamePlayers = gamePlayers.filter(gp => gameIds.has(gp.gameId));
+    setSeasonGamePlayers(filteredGamePlayers);
+  }, []);
   
   const topPerformers = seasonDetails ? (() => {
-    const playerStats = new Map<number, {
-      id: number;
-      name: string;
-      games: number;
-      wins: number;
-      winRate: number;
-    }>();
-  
-    // Initialize player stats
-    players.forEach(player => {
-      playerStats.set(player.id, {
-        id: player.id,
-        name: player.name,
-        games: 0,
-        wins: 0,
-        winRate: 0
-      });
-    });
-  
-    // Collect game IDs for the season
-    const seasonGameIds = new Set(seasonDetails.games.map(game => game.id));
-  
-    // Filter gamePlayers to only the season's games
-    const seasonGamePlayers = gamePlayers ? gamePlayers.filter(gp => seasonGameIds.has(gp.gameId)) : [];
-  
-    // Build a quick lookup for each game's score
+    // Build a quick lookup for game scores
     const gameScoreMap = new Map<number, { team1Score: number; team2Score: number }>();
     seasonDetails.games.forEach(game => {
       gameScoreMap.set(game.id, {
@@ -98,34 +87,29 @@ const SeasonPage: React.FC = () => {
       });
     });
   
-    // Update stats
-    seasonGamePlayers.forEach(gp => {
-      const scores = gameScoreMap.get(gp.gameId);
-      if (!scores) return; // safety check
+    // Filter relevant games for this season
+    const seasonGames = seasonDetails.games;
+    
+    // Calculate stats for each player
+    const playerStats = players.map(player => {
+      const { gamesPlayed, wins, losses, winRate } = calculatePlayerStats(
+        player.id,
+        seasonGames,
+        gamePlayers,
+        currentSeason?.id // or seasonDetails.id if you want to match seasonDetails
+      );
   
-      const player = playerStats.get(gp.playerId);
-      if (!player) return; // player might not exist in list
-  
-      player.games += 1;
-  
-      const { team1Score, team2Score } = scores;
-      if (
-        (gp.team === 1 && team1Score > team2Score) ||
-        (gp.team === 2 && team2Score > team1Score)
-      ) {
-        player.wins += 1;
-      }
-    });
-  
-    // Calculate win rates
-    playerStats.forEach(player => {
-      player.winRate = player.games > 0
-        ? Math.round((player.wins / player.games) * 100)
-        : 0;
+      return {
+        id: player.id,
+        name: player.name,
+        games: gamesPlayed,
+        wins,
+        winRate
+      };
     });
   
     // Get top 5 performers
-    return Array.from(playerStats.values())
+    return playerStats
       .filter(player => player.games >= 2)
       .sort((a, b) => b.winRate - a.winRate || b.games - a.games)
       .slice(0, 5);
@@ -133,9 +117,8 @@ const SeasonPage: React.FC = () => {
   })() : [];
   
   
+  
   const formatDate = (dateString: string) => {
-    // console.log(dateString);
-    console.log(seasonsWithStats);
     const date = new Date(dateString);
     return date.toLocaleDateString(undefined, {
       year: 'numeric',
@@ -332,14 +315,7 @@ const SeasonPage: React.FC = () => {
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                       <p className="text-sm font-medium text-gray-700">Active Players</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {(() => {
-                          const playerIds = new Set<string>();
-                          seasonDetails?.games.forEach(game => {
-                            game.team1Players.forEach(id => playerIds.add(id));
-                            game.team2Players.forEach(id => playerIds.add(id));
-                          });
-                          return playerIds.size;
-                        })()}
+                        {seasonGamePlayers.length}
                       </p>
                     </div>
                   </div>

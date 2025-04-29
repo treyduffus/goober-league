@@ -2,9 +2,10 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusCircle, Users, Trophy, BarChart3 } from 'lucide-react';
 import { useAppContext } from '../contexts/AppContext';
+import { calculatePlayerStats } from '../utils/stats';
 
 const HomePage: React.FC = () => {
-  const { players, games, currentSeason } = useAppContext();
+  const { players, games, currentSeason, gamePlayers } = useAppContext();
   const navigate = useNavigate();
   
   // Filter games by current season
@@ -12,21 +13,18 @@ const HomePage: React.FC = () => {
   
   // Calculate top players
   const playersWithStats = players.map(player => {
-    const playerGames = seasonGames.filter(
-      game => game.team1Players.includes(player.id) || game.team2Players.includes(player.id)
+    const { gamesPlayed, wins, losses, winRate } = calculatePlayerStats(
+      player.id,
+      seasonGames,
+      gamePlayers,
+      currentSeason?.id
     );
-    
-    const wins = playerGames.filter(game => {
-      const inTeam1 = game.team1Players.includes(player.id);
-      return (inTeam1 && game.team1Score > game.team2Score) || 
-             (!inTeam1 && game.team2Score > game.team1Score);
-    }).length;
-    
+  
     return {
       ...player,
-      seasonGames: playerGames.length,
+      seasonGames: gamesPlayed,
       seasonWins: wins,
-      winRate: playerGames.length > 0 ? Math.round((wins / playerGames.length) * 100) : 0
+      winRate: winRate,
     };
   });
   
@@ -96,7 +94,7 @@ const HomePage: React.FC = () => {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800 flex items-center">
             <BarChart3 size={20} className="mr-2 text-primary-600" />
-            Current Season Stats
+            All Time Stats
           </h2>
         </div>
         
