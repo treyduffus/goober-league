@@ -115,7 +115,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }
     }
     fetchGamePlayers();
-  })
+  }, [])
 
   // Add / Posts
 
@@ -288,15 +288,55 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   const removePlayer = async (id: number) => {
 
-    const {error} = await supabase
-      .from("Player")
-      .delete()
-      .eq('id', id)
+        // Nullify team1Captain
+    const { error: updateCaptain1Error } = await supabase
+    .from("Game")
+    .update({ team1Captain: null })
+    .eq("team1Captain", id);
 
-    console.error("Delete error:", error);
+    // Nullify team2Captain
+    const { error: updateCaptain2Error } = await supabase
+    .from("Game")
+    .update({ team2Captain: null })
+    .eq("team2Captain", id);
 
+    if (updateCaptain1Error) {
+      console.error("Failed to nullify captain references:", updateCaptain1Error);
+      return;
+    }
+
+    if (updateCaptain2Error) {
+      console.error("Failed to nullify captain references:", updateCaptain2Error);
+      return;
+    }
+
+      // Step 2: Delete related GamePlayer records
+    const { error: deleteGPError } = await supabase
+    .from("Game_Player")
+    .delete()
+    .eq("player_id", id);
+
+    if (deleteGPError) {
+      console.error("Failed to delete GamePlayer entries:", deleteGPError);
+      return;
+    }
+
+     // Step 3: Delete the Player
+    const { error: deletePlayerError } = await supabase
+    .from("Player")
+    .delete()
+    .eq("id", id);
+
+    if (deletePlayerError) {
+      console.error("Failed to delete Player:", deletePlayerError);
+      return;
+    }
+
+    // Step 4: Update local state
     setPlayers(prev => prev.filter(player => player.id !== id));
-  };
+  
+
+  }
 
   
   const removeGame = async (id: number) => {
