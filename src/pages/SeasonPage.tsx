@@ -69,14 +69,18 @@ const SeasonPage: React.FC = () => {
 
   useEffect(() => {
     if (!seasonDetails || !gamePlayers) return;
-  
+
     const gameIds = new Set(seasonDetails.games.map(game => game.id));
     setSeasonGameIds(gameIds);
   
-    const filteredGamePlayers = gamePlayers.filter(gp => gameIds.has(gp.gameId));
+    const filteredGamePlayers = gamePlayers.filter(gp => gameIds.has(gp.game_id));
     setSeasonGamePlayers(filteredGamePlayers);
-  }, []);
-  
+  }, [seasonDetails, gamePlayers]);
+
+  const uniquePlayerIds = Array.from(
+    new Set(seasonGamePlayers.map(gp => gp.player_id))
+  );
+
   const topPerformers = seasonDetails ? (() => {
     // Build a quick lookup for game scores
     const gameScoreMap = new Map<number, { team1Score: number; team2Score: number }>();
@@ -115,8 +119,6 @@ const SeasonPage: React.FC = () => {
       .slice(0, 5);
   
   })() : [];
-  
-  
   
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -315,7 +317,7 @@ const SeasonPage: React.FC = () => {
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                       <p className="text-sm font-medium text-gray-700">Active Players</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {seasonGamePlayers.length}
+                        {uniquePlayerIds.length}
                       </p>
                     </div>
                   </div>

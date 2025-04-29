@@ -129,25 +129,42 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     console.log("Insert result:", data);
     console.error("Insert error:", error);
 
-    const newPlayer = data;
+    const newPlayer = data[0];
 
     setPlayers(prev => [...prev, newPlayer]);
   };
 
   const handleSetCurrentSeason = async (season: Season) => {
-
-    const tempSeason = {
-      id: season.id,
-      name: season.name,
-      startDate: season.startDate,
-      endDate: season.endDate,
-      is_current_season: true,
+    // 1. Clear the flag on all seasons
+    const { error: resetError } = await supabase
+      .from("Season")
+      .update({ is_current_season: false })
+      .eq("is_current_season", true); // only update currently set ones
+  
+    if (resetError) {
+      console.error("Failed to reset previous current season:", resetError);
+      return;
     }
-
-    updateSeason(tempSeason)
-    setCurrentSeason(tempSeason)
-
-  }
+  
+    // 2. Set the new current season
+    const { error: updateError } = await supabase
+      .from("Season")
+      .update({ is_current_season: true })
+      .eq("id", season.id);
+  
+    if (updateError) {
+      console.error("Failed to set new current season:", updateError);
+      return;
+    }
+  
+    // 3. Update local state
+    const tempSeason = {
+      ...season,
+      is_current_season: true,
+    };
+  
+    setCurrentSeason(tempSeason);
+  };
 
   const addSeason = async (name: string, startDate: string, endDate: string) => {
 
@@ -163,7 +180,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     console.log("Insert result:", data);
     console.error("Insert error:", error);
 
-    const newSeason = data;
+    const newSeason = data[0];
     
     setSeasons(prev => [...prev, newSeason]);
     setCurrentSeason(newSeason);
