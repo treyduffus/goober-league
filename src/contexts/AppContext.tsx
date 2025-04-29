@@ -338,7 +338,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   }
 
-  
   const removeGame = async (id: number) => {
     // Step 1: Delete related GamePlayer entries
     const { error: deleteGPError } = await supabase
@@ -366,29 +365,43 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setGames(prev => prev.filter(game => game.id !== id));
   };
 
-
+  // WARNING DELETES ALL GAMES WITHIN SEASON 
   const removeSeason = async (id: number) => {
-
-    const {error} = await supabase
+    // Fetch all games linked to the season
+    const { data: gamesToDelete, error: fetchError } = await supabase
+      .from("Game")
+      .select("id")
+      .eq("seasonId", id);
+  
+    if (fetchError) {
+      console.error("Error fetching games for season:", fetchError);
+      return;
+    }
+  
+    for (const game of gamesToDelete ?? []) {
+      await removeGame(game.id); // Assumes removeGame handles its own foreign key deletions
+    }
+  
+    // Now delete the season
+    const { error } = await supabase
       .from("Season")
       .delete()
-      .eq('id', id)
-
-    console.error("Delete error:", error);
-
+      .eq("id", id);
+  
+    if (error) {
+      console.error("Delete season error:", error);
+      return;
+    }
+  
     setSeasons(prev => prev.filter(season => season.id !== id));
-    
+  
     if (currentSeason?.id === id) {
-      if(seasons.length > 0) {
-        setCurrentSeason(seasons[0])
+      if (seasons.length > 0) {
+        setCurrentSeason(seasons[0]);
       } else {
-        fetchSeasons()
+        fetchSeasons();
       }
     }
-    
-    // Remove all games associated with this season
-    // Not sure if I want this functionaility 
-    // setGames(prev => prev.filter(game => game.seasonId !== id));
   };
 
   const getPlayerById = (id: number) => players.find(player => player.id === id);
